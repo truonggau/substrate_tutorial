@@ -38,6 +38,12 @@ pub mod pallet {
 	// https://docs.substrate.io/v3/runtime/storage#declaring-storage-items
 	pub type Something<T> = StorageValue<_, u32>;
 
+	#[pallet::storage]
+	pub type Number<T: Config> = StorageMap<_,Blake2_128Concat,
+					T::AccountId,
+					u32,
+					ValueQuery, >;
+
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/v3/runtime/events-and-errors
 	#[pallet::event]
@@ -47,6 +53,7 @@ pub mod pallet {
 		/// parameters. [something, who]
 		SomethingStored(u32, T::AccountId),
 	}
+
 
 	// Errors inform users that something went wrong.
 	#[pallet::error]
@@ -80,6 +87,26 @@ pub mod pallet {
 			Ok(())
 		}
 
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		pub fn put_number(origin: OriginFor<T>, number: u32) ->  DispatchResult {
+			let who = ensure_signed(origin)?;
+ 
+			<Number<T>>::insert(who.clone(),number);
+
+			Self::deposit_event(Event::SomethingStored(number, who));
+
+			Ok(())
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		pub fn delete_number(origin: OriginFor<T>) ->  DispatchResult {
+			let who = ensure_signed(origin)?;
+ 
+			<Number<T>>::remove(who.clone());
+
+			Ok(())
+		}		
+
 		/// An example dispatchable that may throw a custom error.
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn cause_error(origin: OriginFor<T>) -> DispatchResult {
@@ -89,7 +116,7 @@ pub mod pallet {
 			match <Something<T>>::get() {
 				// Return an error if the value has not been set.
 				None => return Err(Error::<T>::NoneValue.into()),
-				Some(old) => {
+				Some(old) => { 
 					// Increment the value read from storage; will error in the event of overflow.
 					let new = old.checked_add(1).ok_or(Error::<T>::StorageOverflow)?;
 					// Update the value in storage with the incremented result.
